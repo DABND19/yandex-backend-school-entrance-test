@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.app import get_app
-from src.db.connection import get_session
+from market.app import get_app
+from market.db.connection import get_session
 
 
 @pytest.fixture(scope='class')

@@ -7,7 +7,8 @@ import pytest
 from sqlalchemy.engine import make_url
 from sqlalchemy_utils import create_database, drop_database
 
-from src.config import settings
+from market.config import settings
+from market.db.utils import create_alembic_config
 
 
 @pytest.fixture(scope="session")
@@ -32,13 +33,4 @@ def mock_database_url() -> str:
 
 @pytest.fixture(scope='class')
 def alembic_config(mock_database_url: str) -> Config:
-    config_path = Path('alembic.ini').absolute()
-    config = Config(str(config_path))
-
-    script_location = Path(config.get_main_option('script_location'))
-    if not script_location.is_absolute():
-        script_location = script_location.absolute()
-        config.set_main_option('script_location', str(script_location))
-
-    config.set_main_option('sqlalchemy.url', str(mock_database_url))
-    return config
+    return create_alembic_config(mock_database_url)

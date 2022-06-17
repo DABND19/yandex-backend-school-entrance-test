@@ -1,0 +1,48 @@
+---
+
+- name: Create directory for market app
+  file:
+    path: /etc/docker/compose/market
+    state: directory
+    mode: 0770
+    owner: root
+    group: docker
+
+- set_fact: 
+    db_url: postgresql+asyncpg://{{ db_user }}:{{ db_password }}@postgres:5432/{{ db_name }}
+
+- name: Deploy docker-compose.yml for market app
+  template:
+    src: docker-compose.yml.j2
+    dest: /etc/docker/compose/market/docker-compose.yml
+    mode: 0640
+    owner: root
+    group: docker
+  notify: Restart market service
+
+- name: Start and enable market service
+  service:
+    name: docker-compose@market
+    enabled: yes
+    state: started
+
+- name: Install python modules
+  apt:
+    name:
+      - python3-docker
+    update_cache: yes
+
+- name: Flush handlers
+  meta: flush_handlers
+
+- name: Apply database migrations
+  docker_container:
+    name: db_migrator
+    image: "{{ market_image }}"
+    command: ["market-db", "upgrade", "head"]
+    networks:
+      - name: market_default
+    auto_remove: yes
+    networks_cli_compatible: yes
+    env:
+      DB_URL: "{{ db_url }}"

@@ -1,0 +1,6 @@
+---
+
+- name: Restart market service
+  service:
+    name: docker-compose@market
+    state: restarted

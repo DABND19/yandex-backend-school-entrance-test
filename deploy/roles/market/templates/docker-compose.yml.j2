@@ -1,0 +1,21 @@
+version: "3.4"
+services:
+  postgres:
+    restart: always
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: {{ db_user }}
+      POSTGRES_PASSWORD: {{ db_password }}
+      POSTGRES_DB: {{ db_name }}
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+
+  analyzer:
+    restart: always
+    image: {{ market_image }}
+    command: market-api
+    ports:
+      - 80:8000
+    environment:
+      DB_URL: {{ db_url }}
+      APP_HOST: 0.0.0.0
