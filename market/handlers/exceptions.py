@@ -14,7 +14,7 @@ def request_validation_error_handler(
     exc: RequestValidationError
 ) -> JSONResponse:
     status_code = HTTPStatus.BAD_REQUEST
-    payload = ErrorSchema(code=status_code, message='Validation Error')
+    payload = ErrorSchema(code=status_code, message='Validation Failed')
     return JSONResponse(jsonable_encoder(payload), status_code)
 
 

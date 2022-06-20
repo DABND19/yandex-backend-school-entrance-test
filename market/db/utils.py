@@ -10,7 +10,7 @@ def create_alembic_config(db_url: str) -> Config:
     config_path = Path(WORKDIR, 'alembic.ini').absolute()
     config = Config(str(config_path))
 
-    script_location = Path(WORKDIR.parent, config.get_main_option('script_location'))
+    script_location = Path(WORKDIR, config.get_main_option('script_location'))
     config.set_main_option('script_location', str(script_location))
 
     config.set_main_option('sqlalchemy.url', db_url)

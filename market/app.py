@@ -12,9 +12,11 @@ from market.schemas import ErrorSchema
 
 
 def get_app() -> FastAPI:
-    app = FastAPI(responses={
-        HTTPStatus.BAD_REQUEST.value: {'model': ErrorSchema},
-        HTTPStatus.UNPROCESSABLE_ENTITY.value: {'model': ErrorSchema}
+    app = FastAPI(
+        title='Mega Market API',
+        description='Вступительное задание в Летнюю Школу Бэкенд Разработки Яндекса 2022', 
+        responses={
+        '4XX': {'model': ErrorSchema},
     })
 
     app.include_router(router)

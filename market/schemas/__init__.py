@@ -3,8 +3,9 @@ from .base import (
     ErrorSchema, 
     DATETIME_ISO8601_PATTERN
 )
-from .shop import (
+from .shop_unit import (
     ShopUnitsListImportSchema, 
     ShopUnitSchema, 
-    ShopUnitsListSchema
+    ShopUnitsListSchema,
+    ShopUnitImportSchema
 )

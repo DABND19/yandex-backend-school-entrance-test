@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -8,10 +9,7 @@ from market.config import settings
 
 engine = create_async_engine(settings.db_url, echo=settings.is_debug)
 Session = sessionmaker(
-    bind=engine, 
-    class_=AsyncSession, 
-    autocommit=False, 
-    autoflush=False
+    bind=engine, class_=AsyncSession, autocommit=False, autoflush=False
 )
 
 

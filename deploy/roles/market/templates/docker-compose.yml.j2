@@ -10,7 +10,7 @@ services:
     volumes:
       - /var/lib/postgresql/data:/var/lib/postgresql/data
 
-  analyzer:
+  market:
     restart: always
     image: {{ market_image }}
     command: market-api

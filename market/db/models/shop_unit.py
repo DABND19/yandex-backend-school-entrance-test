@@ -2,6 +2,7 @@ from enum import Enum, unique
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from .base import Base
 
@@ -52,6 +53,11 @@ class ShopUnitImport(Base):
     )
     name = sa.Column(sa.Text, nullable=False)
     price = sa.Column(sa.Integer)
+    expiration_date = sa.Column(sa.DateTime)
+
+    @hybrid_property
+    def actuality_interval(self):
+        return sa.func.tsrange(self.date, self.expiration_date, '[)')
 
     __table_args__ = (
         sa.ForeignKeyConstraint(
@@ -62,5 +68,14 @@ class ShopUnitImport(Base):
             f'type = \'{ShopUnitType.CATEGORY}\' AND price IS NULL '
             f'OR type = \'{ShopUnitType.OFFER}\' AND price IS NOT NULL',
             name='price_validation'
+        ),
+        sa.ForeignKeyConstraint(
+            [id, expiration_date], [id, date],
+            ondelete='SET NULL', onupdate='CASCADE'
+        ),
+        sa.UniqueConstraint(id, expiration_date),
+        sa.CheckConstraint(
+            'expiration_date IS NULL OR expiration_date > date',
+            name='expiration_date_validation'
         )
     )

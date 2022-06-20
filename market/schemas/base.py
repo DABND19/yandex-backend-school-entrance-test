@@ -41,3 +41,11 @@ class BaseSchema(BaseModel):
 class ErrorSchema(BaseSchema):
     code: int
     message: str
+
+    class Config(BaseConfig):
+        schema_extra = {
+            'example': {
+                'code': 400,
+                'message': 'Bad request'
+            }
+        }
