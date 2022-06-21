@@ -49,14 +49,14 @@ class ShopUnitImport(Base):
     date = sa.Column(sa.DateTime, primary_key=True, nullable=False)
     parent_id = sa.Column(
         postgresql.UUID(as_uuid=True),
-        sa.ForeignKey(ShopUnit.id, ondelete='CASCADE', onupdate='CASCADE')
+        sa.ForeignKey(ShopUnit.id, ondelete='SET NULL', onupdate='CASCADE')
     )
     name = sa.Column(sa.Text, nullable=False)
     price = sa.Column(sa.Integer)
     expiration_date = sa.Column(sa.DateTime)
 
     @hybrid_property
-    def actuality_interval(self):
+    def actuality_period(self):
         return sa.func.tsrange(self.date, self.expiration_date, '[)')
 
     __table_args__ = (

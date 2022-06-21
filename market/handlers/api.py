@@ -1,5 +1,6 @@
 from datetime import datetime
 from http import HTTPStatus
+from typing import Optional
 from uuid import UUID
 
 from fastapi import (
@@ -57,7 +58,13 @@ async def get_nodes(
 
 
 def get_strict_date(**kwargs):
-    def parser(value: str = Query(**kwargs, format='date')) -> datetime:
+    if kwargs.get('default') is ...:
+        annotation = str
+    else:
+        annotation = Optional[str]
+    def parser(value: annotation = Query(**kwargs, format='date')) -> datetime:
+        if value is None:
+            return None
         try:
             return datetime_iso8601_decoder(value)
         except ValueError:
@@ -82,8 +89,12 @@ async def get_sales(
     response_model=ShopUnitsListSchema,
     tags=['Дополнительные задачи']
 )
-def get_node_statistic(
+async def get_node_statistic(
     id_: UUID = Path(alias='id'),
+    date_start: datetime = Depends(get_strict_date(default=None, alias='dateStart')),
+    date_end: datetime = Depends(get_strict_date(default=None, alias='dateEnd')),
     service: MarketService = Depends()
 ):
-    pass
+    return await service.get_shop_unit_statistic(
+        id_, date_start, date_end
+    )
