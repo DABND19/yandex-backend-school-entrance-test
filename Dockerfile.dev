@@ -6,5 +6,7 @@ RUN /usr/share/python3/venv/bin/pip install -U pip
 COPY requirements.txt /mnt/
 RUN /usr/share/python3/venv/bin/pip install -Ur /mnt/requirements.txt
 
-COPY /market /mnt/
+COPY /market/ /mnt/
+COPY docker-entrypoint.dev.sh /mnt/
+RUN chmod 755 /mnt/docker-entrypoint.dev.sh
 WORKDIR /mnt/

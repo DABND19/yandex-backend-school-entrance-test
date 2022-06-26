@@ -21,7 +21,8 @@ services:
       - 8000:8000
     volumes:
       - ./market:/mnt/market
-    command: /usr/share/python3/venv/bin/python -m market --app-host=0.0.0.0
+      - ./docker-entrypoint.dev.sh:/mnt/docker-entrypoint.dev.sh
+    entrypoint: sh ./docker-entrypoint.dev.sh
     environment:
       - DB_URL=postgresql+asyncpg://postgres:password@postgres:5432/postgres
 

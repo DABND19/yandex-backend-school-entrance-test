@@ -13,15 +13,13 @@ venv: clean
 	venv/bin/pip3 install -U pip
 	venv/bin/pip3 install -r requirements.txt
 
-postgres:
-	docker stop market-postgres || true
-	docker run --rm --detach --name=market-postgres \
-		--env POSTGRES_USER=postgres \
-		--env POSTGRES_PASSWORD=password \
-		--env POSTGRES_DB=postgres \
-		--publish 5432:5432 postgres
+stop-local:
+	docker-compose -f docker-compose.dev.yml down
 
-test: postgres
+start-local: stop-local
+	docker-compose -f docker-compose.dev.yml up -d
+
+test:
 	venv/bin/pytest
 
 sdist: clean
