@@ -134,78 +134,112 @@ class MarketService:
 
     async def get_shop_unit_nodes(self, shop_unit_id: UUID) -> ShopUnitSchema:
         async with self.session.begin():
-            await self.session.connection(execution_options={
-                'isolation_level': 'REPEATABLE READ'
-            })
-
             await self._check_is_shop_unit_exists(shop_unit_id)
 
-            nodes = sql.select(
-                ShopUnit,
+            nodes_history = sql.select(
+                ShopUnitImport,
                 sql.literal(1).label('level')
             ).where(
-                ShopUnit.id == shop_unit_id
+                ShopUnitImport.id == shop_unit_id,
+                ShopUnitImport.expiration_date.is_(None)
             ).cte(recursive=True)
+            parent = orm.aliased(ShopUnitImport, nodes_history)
             tmp = sql.select(
-                ShopUnit,
-                (nodes.c.level + 1).label('level')
+                ShopUnitImport,
+                (nodes_history.c.level + 1).label('level')
             ).join(
-                nodes,
-                ShopUnit.parent_id == nodes.c.id
+                nodes_history,
+                sql.and_(
+                    ShopUnitImport.parent_id == parent.id,
+                    parent.actuality_period
+                    .op('&&')(ShopUnitImport.actuality_period)
+                )
             )
-            nodes = nodes.union_all(tmp)
+            nodes_history = nodes_history.union_all(tmp)
+            node_import = orm.aliased(ShopUnitImport, nodes_history)
 
-            offers = sql.select(
-                ShopUnitImport.id,
-                ShopUnitImport.parent_id,
-                ShopUnitImport.date,
-                ShopUnitImport.price
-            ).join(
-                nodes,
-                ShopUnitImport.id == nodes.c.id
+            expiration_dates = sql.select(
+                node_import.id,
+                node_import.parent_id,
+                node_import.expiration_date
             ).where(
-                ShopUnitImport.type == ShopUnitType.OFFER,
-                ShopUnitImport.expiration_date.is_(None)
+                node_import.expiration_date.is_not(None)
             ).cte(recursive=True)
             tmp = sql.select(
-                ShopUnitImport.id,
-                ShopUnitImport.parent_id,
-                offers.c.date,
-                offers.c.price
+                node_import.id,
+                node_import.parent_id,
+                sql.func.greatest(
+                    node_import.expiration_date,
+                    expiration_dates.c.expiration_date
+                ).label('expiration_date')
             ).join(
-                offers,
-                ShopUnitImport.id == offers.c.parent_id
-            ).where(
-                ShopUnitImport.expiration_date.is_(None)
+                expiration_dates,
+                sql.and_(
+                    expiration_dates.c.parent_id == node_import.id,
+                    node_import.actuality_period.op('@>')(expiration_dates.c.expiration_date)
+                )
             )
-            offers = offers.union_all(tmp)
-            prices = sql.select(
-                offers.c.id.label('shop_unit_id'),
-                sql.func.max(offers.c.date).label('date'),
-                sql.func.avg(offers.c.price).label('price')
+            expiration_dates = expiration_dates.union_all(tmp)
+
+            expiration_dates = sql.select(
+                expiration_dates.c.id,
+                sql.func.max(
+                    expiration_dates.c.expiration_date
+                ).label('expiration_date')
             ).group_by(
-                offers.c.id
+                expiration_dates.c.id
+            ).subquery()
+
+            prices = sql.select(
+                node_import.id,
+                node_import.parent_id,
+                node_import.date,
+                node_import.price
+            ).where(
+                node_import.type == ShopUnitType.OFFER,
+                node_import.expiration_date.is_(None)
+            ).cte(recursive=True)
+            tmp = sql.select(
+                node_import.id,
+                node_import.parent_id,
+                prices.c.date,
+                prices.c.price
+            ).join(
+                prices,
+                node_import.id == prices.c.parent_id
+            ).where(
+                node_import.expiration_date.is_(None)
+            )
+            prices = prices.union_all(tmp)
+            prices = sql.select(
+                prices.c.id.label('shop_unit_id'),
+                sql.func.max(prices.c.date).label('date'),
+                sql.func.avg(prices.c.price).label('price')
+            ).group_by(
+                prices.c.id
             ).subquery()
 
             subq = sql.select(
-                ShopUnitImport.id,
-                ShopUnitImport.type,
+                node_import.id,
+                node_import.type,
                 sql.func.greatest(
-                    ShopUnitImport.date, prices.c.date
+                    node_import.date, prices.c.date, 
+                    expiration_dates.c.expiration_date
                 ).label('date'),
-                ShopUnitImport.parent_id,
-                ShopUnitImport.name,
+                node_import.parent_id,
+                node_import.name,
                 prices.c.price,
-                nodes.c.level
-            ).join(
-                nodes,
-                nodes.c.id == ShopUnitImport.id
+                nodes_history.c.level
             ).join(
                 prices,
-                ShopUnitImport.id == prices.c.shop_unit_id,
+                node_import.id == prices.c.shop_unit_id,
+                isouter=True
+            ).join(
+                expiration_dates,
+                node_import.id == expiration_dates.c.id,
                 isouter=True
             ).where(
-                ShopUnitImport.expiration_date.is_(None)
+                node_import.expiration_date.is_(None)
             ).subquery()
             node = orm.aliased(ShopUnitImport, subq, adapt_on_names=True)
             q = sql.select(node).order_by(
@@ -322,29 +356,10 @@ class MarketService:
                 nodes_history.c.type == ShopUnitType.OFFER
             ).subquery()
 
-            tmp = sql.select(
+            price_periods = sql.select(
                 offers.c.period,
                 sql.func.avg(offers.c.price).label('price')
             ).group_by(offers.c.period).subquery()
-            # Объединяем периоды с одинаковой ценой
-            subq = sql.select(
-                sql.func.range_agg(
-                    price_change_periods.c.period).label('period'),
-                tmp.c.price
-            ).join_from(
-                price_change_periods,
-                tmp,
-                tmp.c.period == price_change_periods.c.period,
-                isouter=True
-            ).group_by(
-                tmp.c.price
-            ).subquery()
-            # Результатом обхединения диапазонов может быть мультидиапазон
-            # поэтому распакуем
-            price_periods = sql.select(
-                sql.func.unnest(subq.c.period).label('period'),
-                subq.c.price
-            ).subquery()
 
             # Изменения состоят из изменений цены
             price_changes = sql.select(
@@ -376,7 +391,8 @@ class MarketService:
                 nodes_history,
                 price_periods,
                 price_periods.c.period
-                .op('@>')(nodes_history.c.date)
+                .op('@>')(nodes_history.c.date),
+                isouter=True
             ).where(
                 nodes_history.c.id == shop_unit_id,
                 period.op('@>')(nodes_history.c.date)

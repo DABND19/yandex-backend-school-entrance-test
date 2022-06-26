@@ -1,6 +1,11 @@
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator, Optional
+import uuid
 
 from alembic.config import Config
+from sqlalchemy.engine import make_url
+from sqlalchemy_utils import create_database, drop_database
 
 
 WORKDIR = Path(__file__).parents[1]
@@ -18,6 +23,16 @@ def create_alembic_config(db_url: str) -> Config:
     return config
 
 
-if __name__ == '__main__':
-    from market.config import settings
-    create_alembic_config(settings.db_url)
+@contextmanager
+def tmp_database(db_url: str, template_db: Optional[str] = None) -> Generator[str, None, None]:
+    tmp_db_name = f'{uuid.uuid4()}.pytest'
+    tmp_db_url = make_url(db_url)
+    tmp_db_url = tmp_db_url._replace(database=tmp_db_name)
+
+    sync_tmp_db_url = tmp_db_url._replace(drivername='postgresql')
+    create_database(sync_tmp_db_url, template=template_db)
+
+    try:
+        yield str(tmp_db_url)
+    finally:
+        drop_database(sync_tmp_db_url)

@@ -1,24 +1,25 @@
 from typing import AsyncGenerator
 import uuid
 
-from alembic.command import upgrade
-from alembic.config import Config
 from httpx import AsyncClient
 import pytest
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from market.app import get_app
 from market.db.connection import get_session
+from market.db.utils import tmp_database
 
 
-@pytest.fixture(scope='class')
-def migrated_database_url(alembic_config: Config):
-    upgrade(alembic_config, 'head')
-    yield alembic_config.get_main_option('sqlalchemy.url')
+@pytest.fixture()
+def migrated_database_url(template_db_url: str):
+    template_db = make_url(template_db_url).database
+    with tmp_database(template_db_url, template_db) as db_url:
+        yield db_url
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture()
 def get_mock_session(migrated_database_url: str):
     engine = create_async_engine(migrated_database_url)
     Session = sessionmaker(bind=engine, class_=AsyncSession, 
@@ -29,7 +30,7 @@ def get_mock_session(migrated_database_url: str):
     yield get_session
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture()
 async def api_client(get_mock_session) -> AsyncClient:
     app = get_app()
     app.dependency_overrides[get_session] = get_mock_session
