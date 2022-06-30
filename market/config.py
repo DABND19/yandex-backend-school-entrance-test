@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     app_host: str = 'localhost'
     app_port: int = 8000
 
-    is_debug: bool = True
+    is_debug: bool = False
     db_url: PostgresDsn = 'postgresql+asyncpg://postgres:password@localhost:5432/postgres'
 
 
